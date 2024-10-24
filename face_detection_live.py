@@ -47,12 +47,6 @@ def is_same_face(new_bbox, saved_bbox):
            abs(new_bbox['width'] - saved_bbox['width']) < threshold and \
            abs(new_bbox['height'] - saved_bbox['height']) < threshold
 
-# Hàm xử lý lần lượt từng khuôn mặt chưa có thông tin
-def process_next_face():
-    if not face_queue.empty():
-        face_img, bbox = face_queue.get()
-        open_info_window(face_img, bbox)
-
 # Hàm xử lý nhận diện khuôn mặt và thêm vào hàng đợi nếu chưa có thông tin
 def capture_face():
     global frame
@@ -61,10 +55,7 @@ def capture_face():
         with mp_face_detection.FaceDetection(min_detection_confidence=0.5) as face_detection:
             results = face_detection.process(image_rgb)
             if results.detections:
-                # Nếu chỉ có một khuôn mặt xuất hiện trong camera
-                if len(results.detections) == 1:
-                    detection = results.detections[0]
-
+                for detection in results.detections:
                     # Lấy bounding box của khuôn mặt
                     bboxC = detection.location_data.relative_bounding_box
                     h, w, c = frame.shape
@@ -75,54 +66,25 @@ def capture_face():
                         'height': bboxC.height
                     }
 
-                    # Kiểm tra xem khuôn mặt đã có trong face_info hay chưa
+                    # Kiểm tra xem khuôn mặt đã có trong face_info chưa
                     face_exists = False
                     for face_id, info in face_info.items():
                         if is_same_face(bbox, info['bbox']):
                             face_exists = True
                             break
 
-                    # Nếu khuôn mặt đã tồn tại, hiển thị thông báo
-                    if face_exists:
-                        messagebox.showinfo("Thông báo", "Không cần chụp! Khuôn mặt đã có trong CSDL.")
-                    else:
+                    # Nếu khuôn mặt chưa có, mở cửa sổ nhập thông tin và chụp ảnh
+                    if not face_exists:
                         x, y, w_box, h_box = int(bboxC.xmin * w), int(bboxC.ymin * h), int(bboxC.width * w), int(bboxC.height * h)
-
-                        # Cắt khuôn mặt
                         face_img = frame[y:y + h_box, x:x + w_box]
-
-                        # Mở cửa sổ nhập thông tin
                         open_info_window(face_img, bbox)
-
-                # Nếu có nhiều khuôn mặt xuất hiện
-                else:
-                    for detection in results.detections:
-                        # Lấy bounding box của khuôn mặt
-                        bboxC = detection.location_data.relative_bounding_box
-                        h, w, c = frame.shape
-                        bbox = {
-                            'xmin': bboxC.xmin,
-                            'ymin': bboxC.ymin,
-                            'width': bboxC.width,
-                            'height': bboxC.height
-                        }
-
-                        # Kiểm tra xem khuôn mặt đã có trong face_info hay chưa
-                        face_exists = False
-                        for face_id, info in face_info.items():
-                            if is_same_face(bbox, info['bbox']):
-                                face_exists = True
-                                break
-
-                        # Nếu khuôn mặt chưa được lưu, thì mở cửa sổ nhập thông tin
-                        if not face_exists:
-                            x, y, w_box, h_box = int(bboxC.xmin * w), int(bboxC.ymin * h), int(bboxC.width * w), int(bboxC.height * h)
-
-                            # Cắt khuôn mặt
-                            face_img = frame[y:y + h_box, x:x + w_box]
-
-                            # Mở cửa sổ nhập thông tin
-                            open_info_window(face_img, bbox)
+# Hàm xử lý lần lượt từng khuôn mặt chưa có thông tin
+def process_next_face():
+    if not face_queue.empty():
+        face_img, bbox = face_queue.get()
+        open_info_window(face_img, bbox)
+    else:
+        print("Hàng đợi khuôn mặt đã trống.")  # Khi không còn khuôn mặt nào trong hàng đợi
 
 # Hàm mở cửa sổ nhập thông tin cho khuôn mặt mới
 def open_info_window(face_img, face_bbox):
@@ -214,7 +176,6 @@ def detect_face():
                     }
                     x, y, w_box, h_box = int(bboxC.xmin * w), int(bboxC.ymin * h), int(bboxC.width * w), int(bboxC.height * h)
 
-
                     # Kiểm tra xem khuôn mặt đã có trong face_info không
                     for face_id, info in face_info.items():
                         if is_same_face(bbox, info['bbox']):
@@ -273,4 +234,3 @@ load_face_info_from_file()
 
 # Khởi chạy giao diện
 root.mainloop()
-
